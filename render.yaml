@@ -2,11 +2,16 @@ version: 1
 services:
   - name: ai-medical-checker
     type: web
+    runtime: python
+    plan: free
     buildCommand: |
+      python -m pip install --upgrade pip
       cd backend && pip install -r requirements.txt
-      cd frontend && npm install && npm run build
-      cp -r frontend/build backend/
-    startCommand: cd backend && gunicorn -b 0.0.0.0:8080 api:app
+      cd ../frontend && npm install && npm run build
+      cp -r build ../backend/
+    startCommand: cd backend && gunicorn -b 0.0.0.0:$PORT api:app --timeout 120
     env:
       - key: NODE_ENV
         value: production
+      - key: PYTHON_VERSION
+        value: 3.11.0
