@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import pandas as pd
 import random
@@ -34,12 +34,36 @@ else:
 
 # Load data from local CSV file
 try:
-    data = pd.read_csv('symptoms.csv')
-except FileNotFoundError:
-    # Fallback to Google Drive if local file not found
-    url = 'https://drive.google.com/file/d/1V7Jzs1DV89tqQ4B35dcm_l88atnsNXXJ/view?usp=share_link'
-    url = 'https://drive.google.com/uc?id=' + url.split('/')[-2]
-    data = pd.read_csv(url)
+    import pandas as pd
+    try:
+        data = pd.read_csv('symptoms.csv')
+    except FileNotFoundError:
+        # Fallback to Google Drive if local file not found
+        url = 'https://drive.google.com/file/d/1V7Jzs1DV89tqQ4B35dcm_l88atnsNXXJ/view?usp=share_link'
+        url = 'https://drive.google.com/uc?id=' + url.split('/')[-2]
+        data = pd.read_csv(url)
+except ImportError:
+    # Fallback to manual CSV parsing if pandas is not available
+    import csv
+    data = []
+    try:
+        with open('symptoms.csv', 'r') as file:
+            reader = csv.DictReader(file)
+            data = list(reader)
+    except FileNotFoundError:
+        # Create minimal fallback data
+        data = [
+            {
+                'symptoms_1': 'fever', 'symptoms_2': 'headache', 'symptoms_3': 'cough',
+                'symptoms_4': 'fatigue', 'symptoms_5': 'body aches',
+                'conclusion': 'Common Cold', 'treatment': 'Rest and fluids'
+            },
+            {
+                'symptoms_1': 'nausea', 'symptoms_2': 'vomiting', 'symptoms_3': 'stomach ache',
+                'symptoms_4': 'diarrhea', 'symptoms_5': 'fatigue',
+                'conclusion': 'Gastroenteritis', 'treatment': 'Hydration and rest'
+            }
+        ]
 
 @app.route('/analyze', methods=['POST'])
 def analyze_symptoms():
@@ -65,26 +89,51 @@ def analyze_symptoms():
         # Search for matching conditions
         matching_conditions = []
         
-        for index, row in data.iterrows():
-            row_symptoms = [
-                str(row['symptoms_1']).lower(),
-                str(row['symptoms_2']).lower(), 
-                str(row['symptoms_3']).lower(),
-                str(row['symptoms_4']).lower(),
-                str(row['symptoms_5']).lower()
-            ]
-            
-            # Check how many symptoms match
-            matches = sum(1 for symptom in symptoms if symptom in row_symptoms)
-            
-            if matches > 0:
-                matching_conditions.append({
-                    'condition': row['conclusion'],
-                    'treatment': row['treatment'],
-                    'match_score': matches,
-                    'total_symptoms': len([s for s in row_symptoms if s != 'nan']),
-                    'symptoms': [s for s in row_symptoms if s != 'nan']
-                })
+        # Handle both pandas DataFrame and list of dictionaries
+        if hasattr(data, 'iterrows'):
+            # Pandas DataFrame
+            for index, row in data.iterrows():
+                row_symptoms = [
+                    str(row['symptoms_1']).lower(),
+                    str(row['symptoms_2']).lower(), 
+                    str(row['symptoms_3']).lower(),
+                    str(row['symptoms_4']).lower(),
+                    str(row['symptoms_5']).lower()
+                ]
+                
+                # Check how many symptoms match
+                matches = sum(1 for symptom in symptoms if symptom in row_symptoms)
+                
+                if matches > 0:
+                    matching_conditions.append({
+                        'condition': row['conclusion'],
+                        'treatment': row['treatment'],
+                        'match_score': matches,
+                        'total_symptoms': len([s for s in row_symptoms if s != 'nan']),
+                        'symptoms': [s for s in row_symptoms if s != 'nan']
+                    })
+        else:
+            # List of dictionaries
+            for row in data:
+                row_symptoms = [
+                    str(row.get('symptoms_1', '')).lower(),
+                    str(row.get('symptoms_2', '')).lower(), 
+                    str(row.get('symptoms_3', '')).lower(),
+                    str(row.get('symptoms_4', '')).lower(),
+                    str(row.get('symptoms_5', '')).lower()
+                ]
+                
+                # Check how many symptoms match
+                matches = sum(1 for symptom in symptoms if symptom in row_symptoms)
+                
+                if matches > 0:
+                    matching_conditions.append({
+                        'condition': row.get('conclusion', 'Unknown'),
+                        'treatment': row.get('treatment', 'Consult a doctor'),
+                        'match_score': matches,
+                        'total_symptoms': len([s for s in row_symptoms if s and s != 'nan']),
+                        'symptoms': [s for s in row_symptoms if s and s != 'nan']
+                    })
         
         if not matching_conditions:
             return jsonify({
@@ -116,7 +165,21 @@ def analyze_symptoms():
 def get_conditions():
     """Get all conditions"""
     try:
-        conditions = data[['conclusion', 'treatment']].drop_duplicates().to_dict('records')
+        if hasattr(data, 'drop_duplicates'):
+            # Pandas DataFrame
+            conditions = data[['conclusion', 'treatment']].drop_duplicates().to_dict('records')
+        else:
+            # List of dictionaries
+            seen = set()
+            conditions = []
+            for row in data:
+                key = (row.get('conclusion'), row.get('treatment'))
+                if key not in seen:
+                    seen.add(key)
+                    conditions.append({
+                        'conclusion': row.get('conclusion', 'Unknown'),
+                        'treatment': row.get('treatment', 'Consult a doctor')
+                    })
         return jsonify(conditions)
     except Exception as e:
         return jsonify({
@@ -270,10 +333,11 @@ Talk like a caring doctor, not a formal medical textbook."""
                 )
                 
                 if response.text:
+                    from datetime import datetime
                     return jsonify({
                         'response': response.text,
                         'source': 'gemini',
-                        'timestamp': pd.Timestamp.now().isoformat()
+                        'timestamp': datetime.now().isoformat()
                     })
             except Exception as e:
                 print(f"Gemini API Error: {str(e)}")
@@ -282,10 +346,11 @@ Talk like a caring doctor, not a formal medical textbook."""
         # Use fallback response system
         fallback_response = get_fallback_medical_response(user_message)
         
+        from datetime import datetime
         return jsonify({
             'response': fallback_response,
             'source': 'fallback',
-            'timestamp': pd.Timestamp.now().isoformat(),
+            'timestamp': datetime.now().isoformat(),
             'note': 'AI service is currently limited. For best results, consult a healthcare professional.'
         })
         
@@ -342,10 +407,21 @@ def test_gemini():
 def get_stats():
     """Get basic statistics about the dataset"""
     try:
+        if hasattr(data, 'nunique'):
+            # Pandas DataFrame
+            total_conditions = len(data)
+            unique_conditions = data['conclusion'].nunique()
+            sample_symptoms = data['symptoms_1'].dropna().unique()[:10].tolist()
+        else:
+            # List of dictionaries
+            total_conditions = len(data)
+            unique_conditions = len(set(row.get('conclusion') for row in data))
+            sample_symptoms = list(set(row.get('symptoms_1') for row in data if row.get('symptoms_1')))[:10]
+        
         return jsonify({
-            'total_conditions': len(data),
-            'unique_conditions': data['conclusion'].nunique(),
-            'sample_symptoms': data['symptoms_1'].dropna().unique()[:10].tolist(),
+            'total_conditions': total_conditions,
+            'unique_conditions': unique_conditions,
+            'sample_symptoms': sample_symptoms,
             'gemini_status': 'configured' if model else 'not_configured'
         })
     except Exception as e:
