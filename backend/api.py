@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__, static_folder='build', static_url_path='')
-CORS(app)  # Enable CORS for React frontend
+app = Flask(__name__)
+CORS(app, origins=["http://localhost:3000", "https://*.vercel.app"])  # Enable CORS for React frontend
 
 # Configure Gemini AI
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
@@ -32,38 +32,32 @@ if GEMINI_API_KEY:
 else:
     print("Warning: GEMINI_API_KEY not found. AI chat will use fallback responses.")
 
-# Load data from local CSV file
+# Load data from local CSV file using built-in csv module
+import csv
+data = []
 try:
-    import pandas as pd
-    try:
-        data = pd.read_csv('symptoms.csv')
-    except FileNotFoundError:
-        # Fallback to Google Drive if local file not found
-        url = 'https://drive.google.com/file/d/1V7Jzs1DV89tqQ4B35dcm_l88atnsNXXJ/view?usp=share_link'
-        url = 'https://drive.google.com/uc?id=' + url.split('/')[-2]
-        data = pd.read_csv(url)
-except ImportError:
-    # Fallback to manual CSV parsing if pandas is not available
-    import csv
-    data = []
-    try:
-        with open('symptoms.csv', 'r') as file:
-            reader = csv.DictReader(file)
-            data = list(reader)
-    except FileNotFoundError:
-        # Create minimal fallback data
-        data = [
-            {
-                'symptoms_1': 'fever', 'symptoms_2': 'headache', 'symptoms_3': 'cough',
-                'symptoms_4': 'fatigue', 'symptoms_5': 'body aches',
-                'conclusion': 'Common Cold', 'treatment': 'Rest and fluids'
-            },
-            {
-                'symptoms_1': 'nausea', 'symptoms_2': 'vomiting', 'symptoms_3': 'stomach ache',
-                'symptoms_4': 'diarrhea', 'symptoms_5': 'fatigue',
-                'conclusion': 'Gastroenteritis', 'treatment': 'Hydration and rest'
-            }
-        ]
+    with open('symptoms.csv', 'r') as file:
+        reader = csv.DictReader(file)
+        data = list(reader)
+except FileNotFoundError:
+    # Create minimal fallback data
+    data = [
+        {
+            'symptoms_1': 'fever', 'symptoms_2': 'headache', 'symptoms_3': 'cough',
+            'symptoms_4': 'fatigue', 'symptoms_5': 'body aches',
+            'conclusion': 'Common Cold', 'treatment': 'Rest and fluids'
+        },
+        {
+            'symptoms_1': 'nausea', 'symptoms_2': 'vomiting', 'symptoms_3': 'stomach ache',
+            'symptoms_4': 'diarrhea', 'symptoms_5': 'fatigue',
+            'conclusion': 'Gastroenteritis', 'treatment': 'Hydration and rest'
+        },
+        {
+            'symptoms_1': 'headache', 'symptoms_2': 'nausea', 'symptoms_3': 'dizziness',
+            'symptoms_4': 'fatigue', 'symptoms_5': 'sensitivity to light',
+            'conclusion': 'Migraine', 'treatment': 'Rest in dark room and pain medication'
+        }
+    ]
 
 @app.route('/analyze', methods=['POST'])
 def analyze_symptoms():
@@ -89,51 +83,27 @@ def analyze_symptoms():
         # Search for matching conditions
         matching_conditions = []
         
-        # Handle both pandas DataFrame and list of dictionaries
-        if hasattr(data, 'iterrows'):
-            # Pandas DataFrame
-            for index, row in data.iterrows():
-                row_symptoms = [
-                    str(row['symptoms_1']).lower(),
-                    str(row['symptoms_2']).lower(), 
-                    str(row['symptoms_3']).lower(),
-                    str(row['symptoms_4']).lower(),
-                    str(row['symptoms_5']).lower()
-                ]
-                
-                # Check how many symptoms match
-                matches = sum(1 for symptom in symptoms if symptom in row_symptoms)
-                
-                if matches > 0:
-                    matching_conditions.append({
-                        'condition': row['conclusion'],
-                        'treatment': row['treatment'],
-                        'match_score': matches,
-                        'total_symptoms': len([s for s in row_symptoms if s != 'nan']),
-                        'symptoms': [s for s in row_symptoms if s != 'nan']
-                    })
-        else:
-            # List of dictionaries
-            for row in data:
-                row_symptoms = [
-                    str(row.get('symptoms_1', '')).lower(),
-                    str(row.get('symptoms_2', '')).lower(), 
-                    str(row.get('symptoms_3', '')).lower(),
-                    str(row.get('symptoms_4', '')).lower(),
-                    str(row.get('symptoms_5', '')).lower()
-                ]
-                
-                # Check how many symptoms match
-                matches = sum(1 for symptom in symptoms if symptom in row_symptoms)
-                
-                if matches > 0:
-                    matching_conditions.append({
-                        'condition': row.get('conclusion', 'Unknown'),
-                        'treatment': row.get('treatment', 'Consult a doctor'),
-                        'match_score': matches,
-                        'total_symptoms': len([s for s in row_symptoms if s and s != 'nan']),
-                        'symptoms': [s for s in row_symptoms if s and s != 'nan']
-                    })
+        # Process list of dictionaries
+        for row in data:
+            row_symptoms = [
+                str(row.get('symptoms_1', '')).lower(),
+                str(row.get('symptoms_2', '')).lower(), 
+                str(row.get('symptoms_3', '')).lower(),
+                str(row.get('symptoms_4', '')).lower(),
+                str(row.get('symptoms_5', '')).lower()
+            ]
+            
+            # Check how many symptoms match
+            matches = sum(1 for symptom in symptoms if symptom in row_symptoms)
+            
+            if matches > 0:
+                matching_conditions.append({
+                    'condition': row.get('conclusion', 'Unknown'),
+                    'treatment': row.get('treatment', 'Consult a doctor'),
+                    'match_score': matches,
+                    'total_symptoms': len([s for s in row_symptoms if s and s != 'nan']),
+                    'symptoms': [s for s in row_symptoms if s and s != 'nan']
+                })
         
         if not matching_conditions:
             return jsonify({
@@ -165,21 +135,17 @@ def analyze_symptoms():
 def get_conditions():
     """Get all conditions"""
     try:
-        if hasattr(data, 'drop_duplicates'):
-            # Pandas DataFrame
-            conditions = data[['conclusion', 'treatment']].drop_duplicates().to_dict('records')
-        else:
-            # List of dictionaries
-            seen = set()
-            conditions = []
-            for row in data:
-                key = (row.get('conclusion'), row.get('treatment'))
-                if key not in seen:
-                    seen.add(key)
-                    conditions.append({
-                        'conclusion': row.get('conclusion', 'Unknown'),
-                        'treatment': row.get('treatment', 'Consult a doctor')
-                    })
+        # List of dictionaries
+        seen = set()
+        conditions = []
+        for row in data:
+            key = (row.get('conclusion'), row.get('treatment'))
+            if key not in seen:
+                seen.add(key)
+                conditions.append({
+                    'conclusion': row.get('conclusion', 'Unknown'),
+                    'treatment': row.get('treatment', 'Consult a doctor')
+                })
         return jsonify(conditions)
     except Exception as e:
         return jsonify({
@@ -407,16 +373,10 @@ def test_gemini():
 def get_stats():
     """Get basic statistics about the dataset"""
     try:
-        if hasattr(data, 'nunique'):
-            # Pandas DataFrame
-            total_conditions = len(data)
-            unique_conditions = data['conclusion'].nunique()
-            sample_symptoms = data['symptoms_1'].dropna().unique()[:10].tolist()
-        else:
-            # List of dictionaries
-            total_conditions = len(data)
-            unique_conditions = len(set(row.get('conclusion') for row in data))
-            sample_symptoms = list(set(row.get('symptoms_1') for row in data if row.get('symptoms_1')))[:10]
+        # List of dictionaries
+        total_conditions = len(data)
+        unique_conditions = len(set(row.get('conclusion') for row in data))
+        sample_symptoms = list(set(row.get('symptoms_1') for row in data if row.get('symptoms_1')))[:10]
         
         return jsonify({
             'total_conditions': total_conditions,
@@ -532,26 +492,18 @@ def webhook():
     }
 
 @app.route('/')
-def serve_react_app():
-    """Serve the React app"""
-    return send_from_directory(app.static_folder, 'index.html')
-
-@app.route('/<path:path>')
-def serve_react_routes(path):
-    """Serve React app for all routes (SPA routing)"""
-    if path.startswith('api/'):
-        # Let API routes handle themselves
-        return jsonify({'error': 'API endpoint not found'}), 404
-    
-    # Check if it's a static file
-    if '.' in path:
-        try:
-            return send_from_directory(app.static_folder, path)
-        except:
-            return send_from_directory(app.static_folder, 'index.html')
-    
-    # For all other routes, serve the React app
-    return send_from_directory(app.static_folder, 'index.html')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'message': 'AI Medical Symptom Checker API is running',
+        'endpoints': [
+            '/analyze - POST - Analyze symptoms',
+            '/api/conditions - GET - Get all conditions',
+            '/api/gemini-chat - POST - Chat with AI',
+            '/api/stats - GET - Get statistics'
+        ]
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))

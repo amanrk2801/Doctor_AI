@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Spinner, Alert } from 'react-bootstrap';
 import axios from 'axios';
+import { API_ENDPOINTS } from '../config/api';
 
 function Conditions() {
   const [conditions, setConditions] = useState([]);
@@ -27,7 +28,7 @@ function Conditions() {
 
   const fetchConditions = async () => {
     try {
-      const response = await axios.get('/api/conditions');
+      const response = await axios.get(API_ENDPOINTS.CONDITIONS);
       setConditions(response.data);
       setFilteredConditions(response.data);
     } catch (err) {

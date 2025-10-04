@@ -8,6 +8,8 @@ import {
   Button,
   InputGroup,
 } from "react-bootstrap";
+import axios from 'axios';
+import { API_ENDPOINTS } from '../config/api';
 import axios from "axios";
 
 function AIChat() {
@@ -50,7 +52,7 @@ function AIChat() {
     setIsTyping(true);
 
     try {
-      const response = await axios.post("/api/gemini-chat", {
+      const response = await axios.post(API_ENDPOINTS.GEMINI_CHAT, {
         message: currentMessage,
         conversation_history: messages,
       });

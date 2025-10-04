@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner, Badge } from 'react-bootstrap';
 import axios from 'axios';
+import { API_ENDPOINTS } from '../config/api';
 
 function Home() {
   const [symptoms, setSymptoms] = useState('');
@@ -21,7 +22,7 @@ function Home() {
     setResults(null);
 
     try {
-      const response = await axios.post('/analyze', {
+      const response = await axios.post(API_ENDPOINTS.ANALYZE, {
         symptoms: symptoms
       });
 
