@@ -76,7 +76,7 @@ cd frontend
 
 ### **2.3 Environment Variables**
 Add in Vercel dashboard:
-- `REACT_APP_API_URL` = `https://your-backend-url.onrender.com`
+- `REACT_APP_API_URL_BOT` = `https://your-backend-url.onrender.com`
 
 ### **2.4 Deploy**
 - Click **Deploy**
