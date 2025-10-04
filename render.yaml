@@ -1,0 +1,12 @@
+version: 1
+services:
+  - name: ai-medical-checker
+    type: web
+    buildCommand: |
+      cd backend && pip install -r requirements.txt
+      cd frontend && npm install && npm run build
+      cp -r frontend/build backend/
+    startCommand: cd backend && gunicorn -b 0.0.0.0:8080 api:app
+    env:
+      - key: NODE_ENV
+        value: production
