@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import pandas as pd
 import random
 import os
+import csv
+from datetime import datetime
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -299,7 +300,6 @@ Talk like a caring doctor, not a formal medical textbook."""
                 )
                 
                 if response.text:
-                    from datetime import datetime
                     return jsonify({
                         'response': response.text,
                         'source': 'gemini',
@@ -312,7 +312,6 @@ Talk like a caring doctor, not a formal medical textbook."""
         # Use fallback response system
         fallback_response = get_fallback_medical_response(user_message)
         
-        from datetime import datetime
         return jsonify({
             'response': fallback_response,
             'source': 'fallback',
