@@ -1,11 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar.js';
+import Navbar from './components/Navbar.jsx';
 import Home from './components/Home.jsx';
-import Conditions from './components/Conditions.js';
-import AIChat from './components/AIChat.js';
-import About from './components/About.js';
-import Footer from './components/Footer.js';
+import Conditions from './components/Conditions.jsx';
+import AIChat from './components/AIChat.jsx';
+import About from './components/About.jsx';
+import Footer from './components/Footer.jsx';
 
 function App() {
   return (

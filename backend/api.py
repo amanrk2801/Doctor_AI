@@ -11,7 +11,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000", "https://*.vercel.app"])  # Enable CORS for React frontend
+# Allow common headers and methods in preflight so the frontend can send JSON requests from localhost:3000
+CORS(
+    app,
+    resources={r"/*": {"origins": ["http://localhost:3000", "https://*.vercel.app"]}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization", "Accept"],
+    methods=["GET", "POST", "OPTIONS"]
+)
 
 # Configure Gemini AI
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
@@ -505,5 +512,6 @@ def health_check():
     })
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
+    # default to 5000 for local development to avoid conflicts with system services
+    port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)

@@ -1,5 +1,6 @@
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+// Default to relative paths so the dev server proxy (vite) can forward requests to backend.
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export const API_ENDPOINTS = {
   ANALYZE: `${API_BASE_URL}/analyze`,
