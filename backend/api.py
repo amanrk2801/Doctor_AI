@@ -519,6 +519,29 @@ def health_check():
         ]
     })
 
+
+# Ensure all responses include explicit CORS headers so preflight (OPTIONS)
+# returns Access-Control-Allow-Headers including Content-Type.
+@app.after_request
+def add_cors_headers(response):
+    # Dynamically allow the request Origin if it's in the allowlist.
+    allowed_origins = {
+        'https://doctor-ai-phi-three.vercel.app',
+        'http://localhost:3000',
+        'http://127.0.0.1:3000'
+    }
+
+    origin = request.headers.get('Origin')
+    if origin in allowed_origins:
+        response.headers['Access-Control-Allow-Origin'] = origin
+    # Fallback: do not set a permissive wildcard in production
+
+    response.headers.add('Vary', 'Origin')
+    response.headers.setdefault('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept')
+    response.headers.setdefault('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.headers.setdefault('Access-Control-Allow-Credentials', 'true')
+    return response
+
 if __name__ == '__main__':
     # default to 5000 for local development to avoid conflicts with system services
     port = int(os.environ.get('PORT', 5000))
