@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 import random
 import os
 import csv
@@ -14,7 +14,8 @@ app = Flask(__name__)
 # Allow common headers and methods in preflight so the frontend can send JSON requests from localhost:3000
 CORS(
     app,
-    resources={r"/*": {"origins": ["http://localhost:3000", "https://*.vercel.app"]}},
+    # allow localhost dev and the deployed Vercel frontend origin
+    resources={r"/*": {"origins": ["http://localhost:3000", "https://doctor-ai-phi-three.vercel.app"]}},
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization", "Accept"],
     methods=["GET", "POST", "OPTIONS"]
@@ -68,6 +69,7 @@ except FileNotFoundError:
     ]
 
 @app.route('/analyze', methods=['POST'])
+@cross_origin()
 def analyze_symptoms():
     """Analyze symptoms and return diagnosis"""
     try:
@@ -140,6 +142,7 @@ def analyze_symptoms():
         })
 
 @app.route('/api/conditions', methods=['GET'])
+@cross_origin()
 def get_conditions():
     """Get all conditions"""
     try:
@@ -266,6 +269,7 @@ Stay hydrated, get rest, and monitor your symptoms.
 Remember, I'm here to provide information, but a real doctor should evaluate your specific situation. Your health is important - don't hesitate to seek proper medical care."""
 
 @app.route('/api/gemini-chat', methods=['POST'])
+@cross_origin()
 def gemini_chat():
     """Chat with AI for medical assistance (Gemini or fallback)"""
     try:
@@ -335,6 +339,7 @@ Talk like a caring doctor, not a formal medical textbook."""
         })
 
 @app.route('/api/test-gemini', methods=['GET'])
+@cross_origin()
 def test_gemini():
     """Test Gemini AI connection"""
     try:
@@ -376,6 +381,7 @@ def test_gemini():
         })
 
 @app.route('/api/stats', methods=['GET'])
+@cross_origin()
 def get_stats():
     """Get basic statistics about the dataset"""
     try:
@@ -398,6 +404,7 @@ def get_stats():
 
 # Legacy webhook endpoint for backward compatibility
 @app.route('/webhook', methods=['POST'])
+@cross_origin()
 def webhook():
     """Legacy webhook endpoint"""
     req = request.get_json(silent=True, force=True)
@@ -498,6 +505,7 @@ def webhook():
     }
 
 @app.route('/')
+@cross_origin()
 def health_check():
     """Health check endpoint"""
     return jsonify({
